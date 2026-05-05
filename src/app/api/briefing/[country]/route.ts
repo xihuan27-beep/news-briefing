@@ -11,7 +11,7 @@ import { fetchOutletHeadlines, formatHeadlinesForPrompt } from "@/lib/rss";
 import type { CountryBriefing } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(
   _req: Request,
