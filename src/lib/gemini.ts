@@ -35,6 +35,8 @@ function isRetryable(err: unknown): boolean {
   return /\b(503|429|500|502|504)\b/.test(msg);
 }
 
+const RETRY_DELAYS_MS = [2500, 6000];
+
 export async function generateJson(systemPrompt: string, userMessage: string): Promise<string> {
   const model = getGeminiModel();
   const call = () =>
@@ -43,15 +45,16 @@ export async function generateJson(systemPrompt: string, userMessage: string): P
       systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
     });
 
-  try {
-    const result = await call();
-    return result.response.text();
-  } catch (err) {
-    if (!isRetryable(err)) throw err;
-    // Single retry after a short delay — handles transient 503/429 from
-    // shared Google free tier spikes. Keep wait short to fit Vercel 60s.
-    await new Promise((r) => setTimeout(r, 3500));
-    const result = await call();
-    return result.response.text();
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const result = await call();
+      return result.response.text();
+    } catch (err) {
+      lastErr = err;
+      if (!isRetryable(err) || attempt === RETRY_DELAYS_MS.length) break;
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+    }
   }
+  throw lastErr;
 }
