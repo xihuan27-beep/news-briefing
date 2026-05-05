@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { getCountry } from "@/lib/countries";
 import { todayKST } from "@/lib/date";
-import { getAnthropicClient, MODEL_ID } from "@/lib/anthropic";
+import { generateJson } from "@/lib/gemini";
 import {
   buildCountrySystemPrompt,
   COUNTRY_USER_MESSAGE,
 } from "@/lib/prompt";
-import { extractTextOutput, parseCountryItems } from "@/lib/parse";
+import { parseCountryItems } from "@/lib/parse";
+import { fetchOutletHeadlines, formatHeadlinesForPrompt } from "@/lib/rss";
 import type { CountryBriefing } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 export async function POST(
   _req: Request,
@@ -28,24 +29,24 @@ export async function POST(
   const dateKST = todayKST();
 
   try {
-    const client = getAnthropicClient();
-    const message = await client.messages.create({
-      model: MODEL_ID,
-      max_tokens: 6144,
-      system: buildCountrySystemPrompt(country, dateKST),
-      tools: [
-        {
-          type: "web_search_20250305",
-          name: "web_search",
-          max_uses: 5,
-        },
-      ],
-      messages: [
-        { role: "user", content: COUNTRY_USER_MESSAGE(country, dateKST) },
-      ],
-    });
+    const { headlines, failures } = await fetchOutletHeadlines(country.outletEntries);
 
-    const raw = extractTextOutput(message);
+    if (headlines.length === 0) {
+      const reason =
+        failures.length > 0
+          ? failures.map((f) => `${f.outlet}: ${f.error}`).join("; ")
+          : "RSS 피드에서 헤드라인을 가져오지 못했습니다";
+      return NextResponse.json(
+        { error: `RSS 페치 실패 — ${reason}` },
+        { status: 502 }
+      );
+    }
+
+    const headlinesText = formatHeadlinesForPrompt(headlines);
+    const raw = await generateJson(
+      buildCountrySystemPrompt(country, dateKST),
+      COUNTRY_USER_MESSAGE(country, dateKST, headlinesText)
+    );
     const items = parseCountryItems(raw);
 
     const briefing: CountryBriefing = {

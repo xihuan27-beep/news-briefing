@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getAnthropicClient, MODEL_ID } from "@/lib/anthropic";
+import { generateJson } from "@/lib/gemini";
 import { buildSummarySystemPrompt, SUMMARY_USER_MESSAGE } from "@/lib/prompt";
-import { extractTextOutput, parseSummary } from "@/lib/parse";
+import { parseSummary } from "@/lib/parse";
 import type { CountryBriefing } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   let briefings: CountryBriefing[] = [];
@@ -37,19 +37,11 @@ export async function POST(req: Request) {
   const briefingsJson = JSON.stringify(compact, null, 2);
 
   try {
-    const client = getAnthropicClient();
-    const message = await client.messages.create({
-      model: MODEL_ID,
-      max_tokens: 1024,
-      system: buildSummarySystemPrompt(),
-      messages: [
-        { role: "user", content: SUMMARY_USER_MESSAGE(briefingsJson) },
-      ],
-    });
-
-    const raw = extractTextOutput(message);
+    const raw = await generateJson(
+      buildSummarySystemPrompt(),
+      SUMMARY_USER_MESSAGE(briefingsJson)
+    );
     const text = parseSummary(raw);
-
     return NextResponse.json({ text });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "알 수 없는 오류";

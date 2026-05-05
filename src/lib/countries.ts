@@ -1,12 +1,15 @@
+export interface OutletConfig {
+  name: string;
+  rssUrl: string;
+}
+
 export interface CountryConfig {
   id: string;
   flag: string;
   name: string;
   language: string;
   outlets: string;
-  outletDomains: string[];
-  outletNames: string[];
-  searchHints: string;
+  outletEntries: OutletConfig[];
 }
 
 export const COUNTRIES: CountryConfig[] = [
@@ -16,39 +19,52 @@ export const COUNTRIES: CountryConfig[] = [
     name: "미국",
     language: "English",
     outlets: "The New York Times · The Wall Street Journal",
-    outletDomains: ["nytimes.com", "wsj.com"],
-    outletNames: ["The New York Times", "The Wall Street Journal"],
-    searchHints: "site:nytimes.com OR site:wsj.com",
+    outletEntries: [
+      {
+        name: "The New York Times",
+        rssUrl: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+      },
+      {
+        name: "The Wall Street Journal",
+        rssUrl: "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
+      },
+    ],
   },
   {
     id: "arab",
     flag: "🇸🇦",
     name: "아랍권",
-    language: "العربية (Arabic)",
-    outlets: "Al Jazeera · Al-Ahram",
-    outletDomains: ["aljazeera.net", "ahram.org.eg"],
-    outletNames: ["Al Jazeera (الجزيرة)", "Al-Ahram (الأهرام)"],
-    searchHints: "site:aljazeera.net OR site:ahram.org.eg أخبار اليوم",
+    language: "English",
+    outlets: "Al Jazeera · Arab News",
+    outletEntries: [
+      { name: "Al Jazeera", rssUrl: "https://www.aljazeera.com/xml/rss/all.xml" },
+      { name: "Arab News", rssUrl: "https://www.arabnews.com/rss.xml" },
+    ],
   },
   {
     id: "china",
     flag: "🇨🇳",
     name: "중국",
-    language: "中文 (简体)",
-    outlets: "人民日报 · 财新网",
-    outletDomains: ["people.com.cn", "caixin.com"],
-    outletNames: ["人民日报 (People's Daily)", "财新网 (Caixin)"],
-    searchHints: "site:people.com.cn OR site:caixin.com 今日新闻",
+    language: "English",
+    outlets: "People's Daily · South China Morning Post",
+    outletEntries: [
+      { name: "People's Daily", rssUrl: "http://en.people.cn/rss/90000.xml" },
+      { name: "South China Morning Post", rssUrl: "https://www.scmp.com/rss/91/feed" },
+    ],
   },
   {
     id: "japan",
     flag: "🇯🇵",
     name: "일본",
-    language: "日本語",
-    outlets: "朝日新聞 · 読売新聞",
-    outletDomains: ["asahi.com", "yomiuri.co.jp"],
-    outletNames: ["朝日新聞 (Asahi Shimbun)", "読売新聞 (Yomiuri Shimbun)"],
-    searchHints: "site:asahi.com OR site:yomiuri.co.jp 今日のニュース",
+    language: "日本語 / English",
+    outlets: "朝日新聞 · The Japan Times",
+    outletEntries: [
+      {
+        name: "朝日新聞 (Asahi)",
+        rssUrl: "https://www.asahi.com/rss/asahi/newsheadlines.rdf",
+      },
+      { name: "The Japan Times", rssUrl: "https://www.japantimes.co.jp/feed/" },
+    ],
   },
   {
     id: "france",
@@ -56,9 +72,10 @@ export const COUNTRIES: CountryConfig[] = [
     name: "프랑스",
     language: "Français",
     outlets: "Le Monde · Le Figaro",
-    outletDomains: ["lemonde.fr", "lefigaro.fr"],
-    outletNames: ["Le Monde", "Le Figaro"],
-    searchHints: "site:lemonde.fr OR site:lefigaro.fr actualités",
+    outletEntries: [
+      { name: "Le Monde", rssUrl: "https://www.lemonde.fr/rss/une.xml" },
+      { name: "Le Figaro", rssUrl: "https://www.lefigaro.fr/rss/figaro_actualites.xml" },
+    ],
   },
   {
     id: "germany",
@@ -66,29 +83,32 @@ export const COUNTRIES: CountryConfig[] = [
     name: "독일",
     language: "Deutsch",
     outlets: "Der Spiegel · Die Welt",
-    outletDomains: ["spiegel.de", "welt.de"],
-    outletNames: ["Der Spiegel", "Die Welt"],
-    searchHints: "site:spiegel.de OR site:welt.de Nachrichten",
+    outletEntries: [
+      { name: "Der Spiegel", rssUrl: "https://www.spiegel.de/schlagzeilen/index.rss" },
+      { name: "Die Welt", rssUrl: "https://www.welt.de/feeds/topnews.rss" },
+    ],
   },
   {
     id: "uk",
     flag: "🇬🇧",
     name: "영국",
     language: "English",
-    outlets: "The Guardian · Financial Times",
-    outletDomains: ["theguardian.com", "ft.com"],
-    outletNames: ["The Guardian", "Financial Times"],
-    searchHints: "site:theguardian.com OR site:ft.com UK news",
+    outlets: "The Guardian · BBC",
+    outletEntries: [
+      { name: "The Guardian", rssUrl: "https://www.theguardian.com/uk/rss" },
+      { name: "BBC News", rssUrl: "https://feeds.bbci.co.uk/news/uk/rss.xml" },
+    ],
   },
   {
     id: "mexico",
     flag: "🇲🇽",
     name: "멕시코",
     language: "Español",
-    outlets: "El Universal · Reforma",
-    outletDomains: ["eluniversal.com.mx", "reforma.com"],
-    outletNames: ["El Universal", "Reforma"],
-    searchHints: "site:eluniversal.com.mx OR site:reforma.com noticias hoy",
+    outlets: "La Jornada · Expansión",
+    outletEntries: [
+      { name: "La Jornada", rssUrl: "https://www.jornada.com.mx/rss/edicion.xml" },
+      { name: "Expansión", rssUrl: "https://expansion.mx/rss" },
+    ],
   },
   {
     id: "argentina",
@@ -96,19 +116,24 @@ export const COUNTRIES: CountryConfig[] = [
     name: "아르헨티나",
     language: "Español",
     outlets: "Clarín · La Nación",
-    outletDomains: ["clarin.com", "lanacion.com.ar"],
-    outletNames: ["Clarín", "La Nación"],
-    searchHints: "site:clarin.com OR site:lanacion.com.ar noticias hoy",
+    outletEntries: [
+      { name: "Clarín", rssUrl: "https://www.clarin.com/rss/lo-ultimo/" },
+      {
+        name: "La Nación",
+        rssUrl: "https://www.lanacion.com.ar/arc/outboundfeeds/rss/?outputType=xml",
+      },
+    ],
   },
   {
     id: "africa",
     flag: "🌍",
     name: "아프리카",
-    language: "English / Français",
+    language: "English",
     outlets: "Mail & Guardian · Daily Trust",
-    outletDomains: ["mg.co.za", "dailytrust.com"],
-    outletNames: ["Mail & Guardian", "Daily Trust"],
-    searchHints: "site:mg.co.za OR site:dailytrust.com Africa news",
+    outletEntries: [
+      { name: "Mail & Guardian", rssUrl: "https://mg.co.za/feed/" },
+      { name: "Daily Trust", rssUrl: "https://dailytrust.com/feed/" },
+    ],
   },
 ];
 

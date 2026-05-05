@@ -1,15 +1,7 @@
-import type { Anthropic } from "@anthropic-ai/sdk";
 import type { BriefingItem, Category } from "./types";
 import { CATEGORY_ORDER } from "./types";
 
 const VALID_CATEGORIES: ReadonlySet<Category> = new Set(CATEGORY_ORDER);
-
-export function extractTextOutput(message: Anthropic.Message): string {
-  const parts = message.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text);
-  return parts.join("\n").trim();
-}
 
 export function stripCodeFence(raw: string): string {
   let text = raw.trim();
@@ -33,7 +25,17 @@ interface RawItem {
 
 export function parseCountryItems(raw: string): BriefingItem[] {
   const json = stripCodeFence(raw);
-  const parsed = JSON.parse(json) as { items?: unknown };
+  let parsed: { items?: unknown };
+  try {
+    parsed = JSON.parse(json) as { items?: unknown };
+  } catch (e) {
+    const truncated = json.length > 500;
+    console.error(
+      `[parse] JSON parse failed (length ${json.length}${truncated ? ", possibly truncated" : ""}):`,
+      json.slice(-300)
+    );
+    throw e;
+  }
   if (!parsed || !Array.isArray(parsed.items)) {
     throw new Error("응답에 items 배열이 없습니다.");
   }

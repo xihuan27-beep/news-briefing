@@ -74,9 +74,9 @@ export default function Home() {
     );
     setSummary({ state: "idle" });
 
-    // Stagger calls in batches to stay under Anthropic's per-minute token
-    // rate limit and avoid Vercel function contention. 3 in parallel is the
-    // sweet spot — fast enough, but won't trip 429s.
+    // Gemini 2.5 Flash free tier allows 10 RPM. 3-at-a-time keeps us
+    // comfortably under that, while 10 country calls + 1 summary call
+    // finish in roughly 20-30 seconds wall clock.
     const BATCH_SIZE = 3;
     const succeeded: CountryBriefing[] = [];
     for (let i = 0; i < COUNTRIES.length; i += BATCH_SIZE) {
