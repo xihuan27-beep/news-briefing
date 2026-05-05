@@ -74,16 +74,22 @@ export default function Home() {
     );
     setSummary({ state: "idle" });
 
-    const settled = await Promise.allSettled(
-      COUNTRIES.map((c) => generateOne(c.id))
-    );
-
-    const succeeded = settled
-      .filter(
-        (r): r is PromiseFulfilledResult<CountryBriefing> =>
-          r.status === "fulfilled" && r.value !== null
-      )
-      .map((r) => r.value);
+    // Stagger calls in batches to stay under Anthropic's per-minute token
+    // rate limit and avoid Vercel function contention. 3 in parallel is the
+    // sweet spot — fast enough, but won't trip 429s.
+    const BATCH_SIZE = 3;
+    const succeeded: CountryBriefing[] = [];
+    for (let i = 0; i < COUNTRIES.length; i += BATCH_SIZE) {
+      const batch = COUNTRIES.slice(i, i + BATCH_SIZE);
+      const settled = await Promise.allSettled(
+        batch.map((c) => generateOne(c.id))
+      );
+      for (const r of settled) {
+        if (r.status === "fulfilled" && r.value !== null) {
+          succeeded.push(r.value);
+        }
+      }
+    }
 
     if (succeeded.length === 0) return;
 
