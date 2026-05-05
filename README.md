@@ -10,19 +10,19 @@
 ## 기술 스택
 
 - Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
-- `@google/generative-ai` · Gemini 2.5 Flash
+- `@google/generative-ai` · Gemini 2.5 Flash Lite
 - `fast-xml-parser` (RSS/Atom 파싱)
 - 폰트: Pretendard
 - 배포: Vercel
 
 ## 비용
 
-**0원.** Gemini Flash 무료 티어:
-- 분당 10회 (RPM)
-- 일당 250회 (RPD)
+**0원.** Gemini Flash Lite 무료 티어:
+- 분당 15회 (RPM)
+- 일당 1,000회 (RPD)
 - 분당 25만 토큰 (TPM)
 
-매일 1회 사용 시 한 달 30회 → 무료 한도 안.
+한 번 생성 = 11회 요청 사용 → 하루 ~90번 생성 가능. 매일 1회 사용 기준 한 달 내내 무료.
 
 ## 로컬 실행
 

@@ -2,7 +2,10 @@ import { GoogleGenerativeAI, type GenerativeModel } from "@google/generative-ai"
 
 let _client: GoogleGenerativeAI | null = null;
 
-export const MODEL_ID = "gemini-2.5-flash";
+// Flash-lite has the same generation quality for translation/categorization
+// tasks, but a much higher free-tier daily quota (1000 RPD vs 20 RPD).
+// One full briefing = 11 requests, so flash-lite gives ~90 generations/day.
+export const MODEL_ID = "gemini-2.5-flash-lite";
 
 export function getGeminiModel(): GenerativeModel {
   if (!_client) {
