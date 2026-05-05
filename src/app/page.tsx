@@ -74,10 +74,11 @@ export default function Home() {
     );
     setSummary({ state: "idle" });
 
-    // Gemini 2.5 Flash free tier allows 10 RPM. 3-at-a-time keeps us
-    // comfortably under that, while 10 country calls + 1 summary call
-    // finish in roughly 20-30 seconds wall clock.
-    const BATCH_SIZE = 3;
+    // Pace requests to stay under Gemini Flash Lite's 15 RPM free quota
+    // and avoid 503 spikes on shared infrastructure. 2-at-a-time with a
+    // short pause between batches has been the most reliable pattern.
+    const BATCH_SIZE = 2;
+    const BATCH_GAP_MS = 2500;
     const succeeded: CountryBriefing[] = [];
     for (let i = 0; i < COUNTRIES.length; i += BATCH_SIZE) {
       const batch = COUNTRIES.slice(i, i + BATCH_SIZE);
@@ -88,6 +89,9 @@ export default function Home() {
         if (r.status === "fulfilled" && r.value !== null) {
           succeeded.push(r.value);
         }
+      }
+      if (i + BATCH_SIZE < COUNTRIES.length) {
+        await new Promise((r) => setTimeout(r, BATCH_GAP_MS));
       }
     }
 

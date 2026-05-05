@@ -30,11 +30,28 @@ export function getGeminiModel(): GenerativeModel {
   });
 }
 
+function isRetryable(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /\b(503|429|500|502|504)\b/.test(msg);
+}
+
 export async function generateJson(systemPrompt: string, userMessage: string): Promise<string> {
   const model = getGeminiModel();
-  const result = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: userMessage }] }],
-    systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
-  });
-  return result.response.text();
+  const call = () =>
+    model.generateContent({
+      contents: [{ role: "user", parts: [{ text: userMessage }] }],
+      systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
+    });
+
+  try {
+    const result = await call();
+    return result.response.text();
+  } catch (err) {
+    if (!isRetryable(err)) throw err;
+    // Single retry after a short delay — handles transient 503/429 from
+    // shared Google free tier spikes. Keep wait short to fit Vercel 60s.
+    await new Promise((r) => setTimeout(r, 3500));
+    const result = await call();
+    return result.response.text();
+  }
 }
