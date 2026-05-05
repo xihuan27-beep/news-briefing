@@ -5,7 +5,6 @@ const VALID_CATEGORIES: ReadonlySet<Category> = new Set(CATEGORY_ORDER);
 
 export function stripCodeFence(raw: string): string {
   let text = raw.trim();
-  // Pull the largest JSON object out, in case the model wraps it.
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenceMatch) text = fenceMatch[1].trim();
   const firstBrace = text.indexOf("{");
@@ -23,30 +22,26 @@ interface RawItem {
   sources?: unknown;
 }
 
-export function parseCountryItems(raw: string): BriefingItem[] {
-  const json = stripCodeFence(raw);
-  let parsed: { items?: unknown };
+function safeParseJson<T>(json: string, label: string): T {
   try {
-    parsed = JSON.parse(json) as { items?: unknown };
+    return JSON.parse(json) as T;
   } catch (e) {
     const truncated = json.length > 500;
     console.error(
-      `[parse] JSON parse failed (length ${json.length}${truncated ? ", possibly truncated" : ""}):`,
+      `[parse] ${label} JSON parse failed (length ${json.length}${truncated ? ", possibly truncated" : ""}):`,
       json.slice(-300)
     );
     throw e;
   }
-  if (!parsed || !Array.isArray(parsed.items)) {
-    throw new Error("응답에 items 배열이 없습니다.");
-  }
+}
+
+function itemsFromRawArray(rawItems: unknown): BriefingItem[] {
+  if (!Array.isArray(rawItems)) return [];
 
   const items: BriefingItem[] = [];
-  for (const rawItem of parsed.items as RawItem[]) {
+  for (const rawItem of rawItems as RawItem[]) {
     if (!rawItem || typeof rawItem !== "object") continue;
-    const category = rawItem.category;
-    const body = rawItem.body;
-    const reason = rawItem.reason;
-    const sources = rawItem.sources;
+    const { category, body, reason, sources } = rawItem;
 
     if (typeof category !== "string" || !VALID_CATEGORIES.has(category as Category)) continue;
     if (typeof body !== "string" || !body.trim()) continue;
@@ -74,16 +69,42 @@ export function parseCountryItems(raw: string): BriefingItem[] {
     });
   }
 
-  // Order items by canonical category sequence.
   items.sort(
     (a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category)
   );
   return items;
 }
 
+export function parseCountryItems(raw: string): BriefingItem[] {
+  const json = stripCodeFence(raw);
+  const parsed = safeParseJson<{ items?: unknown }>(json, "country");
+  if (!parsed || !Array.isArray(parsed.items)) {
+    throw new Error("응답에 items 배열이 없습니다.");
+  }
+  return itemsFromRawArray(parsed.items);
+}
+
+export function parseGroupResponse(raw: string): Record<string, BriefingItem[]> {
+  const json = stripCodeFence(raw);
+  const parsed = safeParseJson<{ results?: unknown }>(json, "group");
+  if (!parsed || !Array.isArray(parsed.results)) {
+    throw new Error("응답에 results 배열이 없습니다.");
+  }
+
+  const out: Record<string, BriefingItem[]> = {};
+  for (const r of parsed.results as { countryId?: unknown; items?: unknown }[]) {
+    if (!r || typeof r.countryId !== "string") continue;
+    const items = itemsFromRawArray(r.items);
+    if (items.length > 0) {
+      out[r.countryId.trim()] = items;
+    }
+  }
+  return out;
+}
+
 export function parseSummary(raw: string): string {
   const json = stripCodeFence(raw);
-  const parsed = JSON.parse(json) as { text?: unknown };
+  const parsed = safeParseJson<{ text?: unknown }>(json, "summary");
   if (!parsed || typeof parsed.text !== "string" || !parsed.text.trim()) {
     throw new Error("응답에 text 필드가 없습니다.");
   }

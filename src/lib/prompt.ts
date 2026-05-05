@@ -57,5 +57,41 @@ export const COUNTRY_USER_MESSAGE = (
 
 ${headlinesText}`;
 
+export function buildGroupSystemPrompt(dateKST: string): string {
+  return `당신은 국제 정세 분석가입니다. 여러 국가의 매체에서 가져온 RSS 헤드라인 목록을 받아 각 국가별로 정치·경제·사회·IT 4개 카테고리로 분류·요약·번역해 한국어 브리핑을 작성합니다.
+
+오늘 날짜: ${dateKST} (한국시간 기준)
+
+## 출력 형식 (반드시 JSON, 마크다운 펜스 없이)
+{
+  "results": [
+    {
+      "countryId": "<입력에서 받은 국가 ID 그대로>",
+      "items": [
+        {
+          "category": "정치"|"경제"|"사회"|"IT",
+          "body": "한국어 본문, 본문 안에 [1] [2] 인용 표기, 1~3문장",
+          "reason": "한국어 1~2문장",
+          "sources": [{ "label": "매체명", "url": "정확한 기사 URL" }]
+        }
+      ]
+    }
+  ]
+}
+
+## 작성 지침
+- 각 국가의 countryId는 입력 헤더 \`[id=...]\`에 표시된 그대로 사용
+- 정치·경제·사회·IT 4개 중 의미 있는 카테고리만 (없으면 생략)
+- body는 1~3문장의 한국어, reason은 1~2문장
+- sources URL은 입력으로 받은 정확한 기사 URL을 그대로 사용 (절대 매체 홈페이지 X, 추측·생성 X)
+- 본문 안 [1] 인덱스는 sources 배열 인덱스(1부터)와 일치
+- 헤드라인에 없는 사실은 절대 추가하지 말 것
+- 출력은 JSON 객체 하나만, 마크다운 코드펜스 없이`;
+}
+
+export const GROUP_USER_MESSAGE = (dateKST: string, sectionsText: string) =>
+  `오늘(${dateKST}) 다음 국가들의 매체 RSS 헤드라인입니다. 각 국가별로 정치·경제·사회·IT 카테고리로 정리해 위 JSON 스키마로 반환해주세요. 각 국가의 countryId는 [id=...] 부분 그대로 사용해주세요.
+${sectionsText}`;
+
 export const SUMMARY_USER_MESSAGE = (briefingsJson: string) =>
   `다음은 오늘 10개국 브리핑입니다. 이를 종합해 "오늘의 핵심 관통 주제"를 작성해주세요:\n\n${briefingsJson}`;

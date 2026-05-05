@@ -28,6 +28,20 @@ async function fetchCountry(id: string): Promise<CountryBriefing> {
   return (await res.json()) as CountryBriefing;
 }
 
+async function fetchGroup(countryIds: string[]): Promise<CountryBriefing[]> {
+  const res = await fetch("/api/briefing/group", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ countryIds }),
+  });
+  if (!res.ok) {
+    const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(errBody.error || `HTTP ${res.status}`);
+  }
+  const body = (await res.json()) as { briefings: CountryBriefing[] };
+  return body.briefings;
+}
+
 async function fetchSummary(briefings: CountryBriefing[]): Promise<string> {
   const res = await fetch("/api/briefing/summary", {
     method: "POST",
@@ -74,26 +88,54 @@ export default function Home() {
     );
     setSummary({ state: "idle" });
 
-    // Pace requests to stay under Gemini Flash Lite's 15 RPM free quota
-    // and avoid 503 spikes on shared infrastructure. 2-at-a-time with a
-    // short pause between batches has been the most reliable pattern.
-    const BATCH_SIZE = 2;
-    const BATCH_GAP_MS = 2500;
+    // Group-mode: split 10 countries into 2 groups of 5, fire both groups
+    // in parallel. Each group = one Gemini call. Total per click = 2 group
+    // calls + 1 summary = 3 free-tier requests, comfortably under the 20/day
+    // quota. Each group call returns up to 5 country briefings at once.
+    const half = Math.ceil(COUNTRIES.length / 2);
+    const groups = [COUNTRIES.slice(0, half), COUNTRIES.slice(half)];
+
+    const groupResults = await Promise.allSettled(
+      groups.map((g) => fetchGroup(g.map((c) => c.id)))
+    );
+
     const succeeded: CountryBriefing[] = [];
-    for (let i = 0; i < COUNTRIES.length; i += BATCH_SIZE) {
-      const batch = COUNTRIES.slice(i, i + BATCH_SIZE);
-      const settled = await Promise.allSettled(
-        batch.map((c) => generateOne(c.id))
-      );
-      for (const r of settled) {
-        if (r.status === "fulfilled" && r.value !== null) {
-          succeeded.push(r.value);
+
+    groupResults.forEach((result, groupIdx) => {
+      const group = groups[groupIdx];
+      if (result.status === "fulfilled") {
+        const byId = new Map(result.value.map((b) => [b.countryId, b]));
+        for (const country of group) {
+          const data = byId.get(country.id);
+          if (data && data.items.length > 0) {
+            setStatuses((prev) => ({
+              ...prev,
+              [country.id]: { state: "ready", data },
+            }));
+            succeeded.push(data);
+          } else {
+            setStatuses((prev) => ({
+              ...prev,
+              [country.id]: {
+                state: "error",
+                message: "응답에 카테고리가 포함되지 않음",
+              },
+            }));
+          }
+        }
+      } else {
+        const message =
+          result.reason instanceof Error
+            ? result.reason.message
+            : "알 수 없는 오류";
+        for (const country of group) {
+          setStatuses((prev) => ({
+            ...prev,
+            [country.id]: { state: "error", message },
+          }));
         }
       }
-      if (i + BATCH_SIZE < COUNTRIES.length) {
-        await new Promise((r) => setTimeout(r, BATCH_GAP_MS));
-      }
-    }
+    });
 
     if (succeeded.length === 0) return;
 
@@ -105,7 +147,7 @@ export default function Home() {
       const message = err instanceof Error ? err.message : "알 수 없는 오류";
       setSummary({ state: "error", message });
     }
-  }, [generateOne]);
+  }, []);
 
   const handleRetry = useCallback(
     (id: string) => {
