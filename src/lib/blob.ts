@@ -31,7 +31,6 @@ export async function saveBriefing(data: FullBriefingResult): Promise<void> {
     await put(blobPath(data.dateKST), JSON.stringify(data), {
       access: "public",
       contentType: "application/json",
-      // 같은 날짜 키에 덮어쓰기
       addRandomSuffix: false,
     });
     console.log(`[blob] ${data.dateKST} 브리핑 저장 완료`);
@@ -52,7 +51,6 @@ export async function loadBriefing(): Promise<FullBriefingResult | null> {
     if (!res.ok) return null;
     const data = (await res.json()) as FullBriefingResult;
 
-    // 날짜 일치 확인
     if (data.dateKST !== dateStr) return null;
     return data;
   } catch (err) {
