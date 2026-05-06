@@ -4,10 +4,26 @@ interface HeaderProps {
   dateLabel: string;
   isLoading: boolean;
   hasResults: boolean;
+  cachedAt: string | null;
   onGenerate: () => void;
 }
 
-export function Header({ dateLabel, isLoading, hasResults, onGenerate }: HeaderProps) {
+function formatCachedAt(iso: string): string {
+  // ISO 타임스탬프 → 한국시간 "HH:MM 기준"
+  const date = new Date(iso);
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  const h = String(kst.getUTCHours()).padStart(2, "0");
+  const m = String(kst.getUTCMinutes()).padStart(2, "0");
+  return `오전 ${h}:${m} 자동 생성`;
+}
+
+export function Header({
+  dateLabel,
+  isLoading,
+  hasResults,
+  cachedAt,
+  onGenerate,
+}: HeaderProps) {
   const buttonLabel = isLoading
     ? "생성 중…"
     : hasResults
@@ -26,15 +42,29 @@ export function Header({ dateLabel, isLoading, hasResults, onGenerate }: HeaderP
         {dateLabel} · 한국시간 기준
       </p>
 
-      <button
-        type="button"
-        onClick={onGenerate}
-        disabled={isLoading}
-        className="mt-6 inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[var(--rule)]"
-        style={{ borderColor: "var(--foreground)" }}
-      >
-        {buttonLabel}
-      </button>
+      <div className="mt-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onGenerate}
+          disabled={isLoading}
+          className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[var(--rule)]"
+          style={{ borderColor: "var(--foreground)" }}
+        >
+          {buttonLabel}
+        </button>
+
+        {cachedAt && !isLoading && (
+          <span className="text-xs" style={{ color: "var(--muted)" }}>
+            {formatCachedAt(cachedAt)}
+          </span>
+        )}
+
+        {!hasResults && !isLoading && !cachedAt && (
+          <span className="text-xs" style={{ color: "var(--muted)" }}>
+            매일 오전 5시 자동 생성
+          </span>
+        )}
+      </div>
     </header>
   );
 }

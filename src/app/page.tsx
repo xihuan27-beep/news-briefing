@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { CountryCard } from "@/components/CountryCard";
 import { SummaryCard } from "@/components/SummaryCard";
 import { COUNTRIES } from "@/lib/countries";
 import { todayKSTLong } from "@/lib/date";
 import type { BriefingStatus, CountryBriefing } from "@/lib/types";
+import type { FullBriefingResult } from "@/lib/generate";
 
 type CountryStatuses = Record<string, BriefingStatus>;
 type SummaryState =
@@ -56,9 +57,44 @@ async function fetchSummary(briefings: CountryBriefing[]): Promise<string> {
   return body.text;
 }
 
+function statusesFromBriefings(briefings: CountryBriefing[]): CountryStatuses {
+  const map: CountryStatuses = Object.fromEntries(
+    COUNTRIES.map((c) => [c.id, { state: "idle" } as BriefingStatus])
+  );
+  for (const b of briefings) {
+    if (b.items.length > 0) {
+      map[b.countryId] = { state: "ready", data: b };
+    }
+    // 아이템 없는 국가는 idle 상태 유지 (버튼으로 재시도 가능)
+  }
+  return map;
+}
+
 export default function Home() {
   const [statuses, setStatuses] = useState<CountryStatuses>(initialStatuses);
   const [summary, setSummary] = useState<SummaryState>({ state: "idle" });
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [cacheChecked, setCacheChecked] = useState(false);
+
+  // 페이지 로드 시 오늘 캐시된 브리핑 자동 로드
+  useEffect(() => {
+    async function loadCached() {
+      try {
+        const res = await fetch("/api/briefing/cached");
+        if (res.ok) {
+          const data = (await res.json()) as FullBriefingResult;
+          setStatuses(statusesFromBriefings(data.briefings));
+          setSummary({ state: "ready", text: data.summary });
+          setCachedAt(data.generatedAt);
+        }
+      } catch {
+        // 캐시 없음 — 정상 (버튼 눌러서 생성)
+      } finally {
+        setCacheChecked(true);
+      }
+    }
+    void loadCached();
+  }, []);
 
   const isAnyLoading =
     Object.values(statuses).some((s) => s.state === "loading") ||
@@ -80,7 +116,7 @@ export default function Home() {
   }, []);
 
   const handleGenerate = useCallback(async () => {
-    // Reset everything to loading.
+    setCachedAt(null);
     setStatuses(
       Object.fromEntries(
         COUNTRIES.map((c) => [c.id, { state: "loading" } as BriefingStatus])
@@ -88,10 +124,6 @@ export default function Home() {
     );
     setSummary({ state: "idle" });
 
-    // Group-mode: split 10 countries into 2 groups of 5, fire both groups
-    // in parallel. Each group = one Gemini call. Total per click = 2 group
-    // calls + 1 summary = 3 free-tier requests, comfortably under the 20/day
-    // quota. Each group call returns up to 5 country briefings at once.
     const half = Math.ceil(COUNTRIES.length / 2);
     const groups = [COUNTRIES.slice(0, half), COUNTRIES.slice(half)];
 
@@ -156,12 +188,28 @@ export default function Home() {
     [generateOne]
   );
 
+  // 캐시 확인 전에는 아무것도 렌더링하지 않음 (레이아웃 깜빡임 방지)
+  if (!cacheChecked) {
+    return (
+      <main className="mx-auto max-w-2xl px-5 sm:px-6">
+        <Header
+          dateLabel={todayKSTLong()}
+          isLoading={false}
+          hasResults={false}
+          cachedAt={null}
+          onGenerate={handleGenerate}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-2xl px-5 sm:px-6">
       <Header
         dateLabel={todayKSTLong()}
         isLoading={isAnyLoading}
         hasResults={hasResults}
+        cachedAt={cachedAt}
         onGenerate={handleGenerate}
       />
 
