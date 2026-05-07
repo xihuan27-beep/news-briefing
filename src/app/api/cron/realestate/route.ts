@@ -1,19 +1,11 @@
 import { NextResponse } from "next/server";
 import { fetchRealestateHeadlines } from "@/lib/realestate-rss";
 import { generateJson } from "@/lib/gemini";
-import { loadRealestate } from "@/lib/blob";
+import { saveRealestate, todayKSTString } from "@/lib/blob";
 import type { RealestateBriefing, RealestateTopic, RealestateArticle } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-// GET → 오늘 캐시된 부동산 뉴스 반환
-export async function GET(): Promise<NextResponse> {
-  const data = await loadRealestate();
-  if (!data) {
-    return NextResponse.json({ error: "오늘 부동산 뉴스 없음" }, { status: 404 });
-  }
-  return NextResponse.json(data);
-}
+export const maxDuration = 60;
 
 const TOPICS: RealestateTopic[] = ["재개발", "아파트", "꼬마빌딩", "상업용 부동산"];
 
@@ -28,45 +20,33 @@ const SYSTEM_PROMPT = `당신은 한국 부동산 뉴스 분류 전문가입니�
 반드시 아래 JSON 형식만 반환하세요:
 { "results": [{ "idx": 0, "topic": "재개발" }, ...] }`;
 
-function buildUserMessage(articles: { title: string; outlet: string }[]): string {
-  const lines = articles.map((a, i) => `${i}. [${a.outlet}] ${a.title}`).join("\n");
-  return `다음 기사들을 분류해주세요:\n${lines}`;
-}
-
-function parseClassification(raw: string): { idx: number; topic: string }[] {
-  try {
-    const parsed = JSON.parse(raw) as { results?: { idx: number; topic: string }[] };
-    return parsed.results ?? [];
-  } catch {
-    return [];
+export async function GET(req: Request) {
+  const authHeader = req.headers.get("authorization");
+  if (
+    process.env.CRON_SECRET &&
+    authHeader !== `Bearer ${process.env.CRON_SECRET}`
+  ) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-}
 
-export async function POST(): Promise<NextResponse> {
+  const dateKST = todayKSTString();
+  console.log(`[cron/realestate] ${dateKST} 부동산 뉴스 생성 시작`);
+
   try {
     const headlines = await fetchRealestateHeadlines();
+    if (headlines.length === 0) throw new Error("RSS 기사 없음");
 
-    if (headlines.length === 0) {
-      // Return empty structure if no headlines found
-      const empty: RealestateBriefing = {
-        topics: TOPICS.map((topic) => ({ topic, articles: [] })),
-        generatedAt: new Date().toISOString(),
-      };
-      return NextResponse.json(empty);
-    }
-
-    // Classify with Gemini
     const raw = await generateJson(
       SYSTEM_PROMPT,
-      buildUserMessage(headlines.map((h) => ({ title: h.title, outlet: h.outlet })))
+      `다음 기사들을 분류해주세요:\n${headlines.map((h, i) => `${i}. [${h.outlet}] ${h.title}`).join("\n")}`
     );
-    const classifications = parseClassification(raw);
 
-    // Build topic → articles map
+    const parsed = JSON.parse(raw) as { results?: { idx: number; topic: string }[] };
+    const classifications = parsed.results ?? [];
+
     const byTopic = new Map<RealestateTopic, RealestateArticle[]>(
       TOPICS.map((t) => [t, []])
     );
-
     for (const c of classifications) {
       if (!TOPICS.includes(c.topic as RealestateTopic)) continue;
       const topic = c.topic as RealestateTopic;
@@ -83,9 +63,14 @@ export async function POST(): Promise<NextResponse> {
       generatedAt: new Date().toISOString(),
     };
 
-    return NextResponse.json(briefing);
+    await saveRealestate(briefing);
+    const total = briefing.topics.reduce((s, t) => s + t.articles.length, 0);
+    console.log(`[cron/realestate] 완료. 총 ${total}개 기사`);
+
+    return NextResponse.json({ ok: true, dateKST, total });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "알 수 없는 오류";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "알 수 없는 오류";
+    console.error("[cron/realestate] 오류:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

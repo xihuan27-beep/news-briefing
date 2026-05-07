@@ -72,6 +72,11 @@ function statusesFromBriefings(briefings: CountryBriefing[]): CountryStatuses {
 }
 
 async function fetchRealestate(): Promise<RealestateBriefing> {
+  // 1) 캐시 조회
+  const cached = await fetch("/api/briefing/realestate", { method: "GET" });
+  if (cached.ok) return (await cached.json()) as RealestateBriefing;
+
+  // 2) 캐시 없으면 신규 생성
   const res = await fetch("/api/briefing/realestate", { method: "POST" });
   if (!res.ok) {
     const errBody = (await res.json().catch(() => ({}))) as { error?: string };
