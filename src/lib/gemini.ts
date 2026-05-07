@@ -21,13 +21,14 @@ export function getGeminiModel(): GenerativeModel {
     model: MODEL_ID,
     generationConfig: {
       temperature: 0.3,
-      maxOutputTokens: 8192,
+      // thinkingConfig은 generationConfig 안에 있어야 적용됨.
+      // thinking이 켜지면 maxOutputTokens 예산을 잡아먹어 JSON이 중간에 잘림.
+      // thinkingBudget: 0으로 끄면 16384 토큰 전부 실제 JSON 출력에 사용.
+      // @ts-expect-error - thinkingConfig not yet in @google/generative-ai typedefs
+      thinkingConfig: { thinkingBudget: 0 },
+      maxOutputTokens: 16384,
       responseMimeType: "application/json",
     },
-    // thinking을 끄면 각 호출이 25초 → 5-10초로 단축됨.
-    // 3번 호출 합계가 60초 안에 완료되어 크론 타임아웃 방지.
-    // @ts-expect-error - thinkingConfig is supported but not yet in the type definitions
-    thinkingConfig: { thinkingBudget: 0 },
   });
 }
 
