@@ -28,3 +28,26 @@ export type BriefingStatus =
   | { state: "loading" }
   | { state: "ready"; data: CountryBriefing }
   | { state: "error"; message: string };
+
+// ── 부동산 정보 ──────────────────────────────────────
+export type RealestateTopic = "재개발" | "아파트" | "꼬마빌딩" | "상업용 부동산";
+export const REALESTATE_TOPICS: RealestateTopic[] = ["재개발", "아파트", "꼬마빌딩", "상업용 부동산"];
+
+export interface RealestateArticle {
+  title: string;
+  url: string;
+  outlet: string;
+  pubDate?: string;
+  topic: RealestateTopic;
+}
+
+export interface RealestateBriefing {
+  topics: { topic: RealestateTopic; articles: RealestateArticle[] }[];
+  generatedAt: string;
+}
+
+export type RealestateStatus =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ready"; data: RealestateBriefing }
+  | { state: "error"; message: string };
