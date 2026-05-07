@@ -85,9 +85,9 @@ export default function Home() {
   const [summary, setSummary] = useState<SummaryState>({ state: "idle" });
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [cacheChecked, setCacheChecked] = useState(false);
-  const [realestateStatus, setRealestateStatus] = useState<RealestateStatus>({ state: "idle" });
+  const [realestateStatus, setRealestateStatus] = useState<RealestateStatus>({ state: "loading" });
 
-  // 페이지 로드 시 오늘 캐시된 브리핑 자동 로드
+  // 페이지 로드 시 오늘 캐시된 브리핑 + 부동산 뉴스 자동 로드
   useEffect(() => {
     async function loadCached() {
       try {
@@ -104,7 +104,19 @@ export default function Home() {
         setCacheChecked(true);
       }
     }
+
+    async function loadRealestate() {
+      try {
+        const data = await fetchRealestate();
+        setRealestateStatus({ state: "ready", data });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "알 수 없는 오류";
+        setRealestateStatus({ state: "error", message });
+      }
+    }
+
     void loadCached();
+    void loadRealestate();
   }, []);
 
   const isAnyLoading =
@@ -205,17 +217,6 @@ export default function Home() {
     [generateOne]
   );
 
-  const handleRealestate = useCallback(async () => {
-    setRealestateStatus({ state: "loading" });
-    try {
-      const data = await fetchRealestate();
-      setRealestateStatus({ state: "ready", data });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "알 수 없는 오류";
-      setRealestateStatus({ state: "error", message });
-    }
-  }, []);
-
   // 캐시 확인 전에는 아무것도 렌더링하지 않음 (레이아웃 깜빡임 방지)
   if (!cacheChecked) {
     return (
@@ -226,8 +227,6 @@ export default function Home() {
           hasResults={false}
           cachedAt={null}
           onGenerate={handleGenerate}
-          onRealestate={handleRealestate}
-          isRealestateLoading={false}
         />
       </main>
     );
@@ -241,8 +240,6 @@ export default function Home() {
         hasResults={hasResults}
         cachedAt={cachedAt}
         onGenerate={handleGenerate}
-        onRealestate={handleRealestate}
-        isRealestateLoading={realestateStatus.state === "loading"}
       />
 
       <RealestateSection status={realestateStatus} />
