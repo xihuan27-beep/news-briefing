@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Header } from "@/components/Header";
 import { CountryCard } from "@/components/CountryCard";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -88,6 +88,9 @@ export default function Home() {
   const [realestateStatus, setRealestateStatus] = useState<RealestateStatus>({ state: "loading" });
 
   // 페이지 로드 시 오늘 캐시된 브리핑 + 부동산 뉴스 자동 로드
+  // handleGenerate보다 먼저 선언해야 하므로 ref로 순환 참조 방지
+  const generateRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
   useEffect(() => {
     async function loadCached() {
       try {
@@ -97,9 +100,13 @@ export default function Home() {
           setStatuses(statusesFromBriefings(data.briefings));
           setSummary({ state: "ready", text: data.summary });
           setCachedAt(data.generatedAt);
+        } else {
+          // 캐시 없음 → 자동 생성
+          void generateRef.current();
         }
       } catch {
-        // 캐시 없음 — 정상 (버튼 눌러서 생성)
+        // 오류 → 자동 생성
+        void generateRef.current();
       } finally {
         setCacheChecked(true);
       }
@@ -209,6 +216,9 @@ export default function Home() {
       setSummary({ state: "error", message });
     }
   }, []);
+
+  // ref를 항상 최신 handleGenerate로 유지 (useEffect에서 안전하게 호출)
+  generateRef.current = handleGenerate;
 
   const handleRetry = useCallback(
     (id: string) => {
