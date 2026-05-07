@@ -33,6 +33,23 @@ const parser = new XMLParser({
 });
 
 const FETCH_TIMEOUT_MS = 8000;
+const RECENT_HOURS = 36; // 36시간 이내 기사만 포함 (시차 여유 포함)
+
+function parseDate(str: string): Date | null {
+  try {
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
+function isRecent(publishedAt: string | undefined): boolean {
+  if (!publishedAt) return true; // 날짜 없으면 포함
+  const d = parseDate(publishedAt);
+  if (!d) return true; // 파싱 실패하면 포함
+  return Date.now() - d.getTime() < RECENT_HOURS * 60 * 60 * 1000;
+}
 
 function pickText(v: unknown): string {
   if (typeof v === "string") return v.trim();
@@ -106,7 +123,14 @@ async function fetchFeed(outlet: OutletConfig): Promise<Headline[]> {
     }
     const xml = await res.text();
     const parsed = parser.parse(xml) as ParsedFeed;
-    const rawItems = extractItems(parsed).slice(0, 25);
+    const allItems = extractItems(parsed);
+
+    // 36시간 이내 기사만 필터링. 최신 기사가 하나도 없으면 최근 5개 fallback
+    const recentItems = allItems.filter((it) => {
+      const dateStr = it.pubDate || it.published || it.updated || it["dc:date"];
+      return isRecent(dateStr);
+    });
+    const rawItems = (recentItems.length > 0 ? recentItems : allItems.slice(0, 5)).slice(0, 20);
 
     return rawItems
       .map((it): Headline | null => {

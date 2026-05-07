@@ -127,9 +127,15 @@ export default function Home() {
     const half = Math.ceil(COUNTRIES.length / 2);
     const groups = [COUNTRIES.slice(0, half), COUNTRIES.slice(half)];
 
-    const groupResults = await Promise.allSettled(
-      groups.map((g) => fetchGroup(g.map((c) => c.id)))
-    );
+    // Gemini 무료 티어 동시 호출 rate limit 방지 — 순차 실행
+    const groupResults: PromiseSettledResult<CountryBriefing[]>[] = [];
+    for (const g of groups) {
+      const result = await fetchGroup(g.map((c) => c.id)).then(
+        (v) => ({ status: "fulfilled" as const, value: v }),
+        (e) => ({ status: "rejected" as const, reason: e })
+      );
+      groupResults.push(result);
+    }
 
     const succeeded: CountryBriefing[] = [];
 

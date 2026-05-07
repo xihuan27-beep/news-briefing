@@ -77,9 +77,15 @@ export async function generateFullBriefing(): Promise<FullBriefingResult> {
   const half = Math.ceil(COUNTRIES.length / 2);
   const groups = [COUNTRIES.slice(0, half), COUNTRIES.slice(half)];
 
-  const groupResults = await Promise.allSettled(
-    groups.map((g) => generateGroupBriefing(g))
-  );
+  // 동시 호출 시 Gemini 무료 티어 rate limit 문제로 순차 실행
+  const groupResults: PromiseSettledResult<CountryBriefing[]>[] = [];
+  for (const g of groups) {
+    const result = await generateGroupBriefing(g).then(
+      (v) => ({ status: "fulfilled" as const, value: v }),
+      (e) => ({ status: "rejected" as const, reason: e })
+    );
+    groupResults.push(result);
+  }
 
   const succeeded: CountryBriefing[] = [];
   const all: CountryBriefing[] = [];
