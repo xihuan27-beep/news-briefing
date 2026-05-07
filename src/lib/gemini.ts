@@ -21,12 +21,13 @@ export function getGeminiModel(): GenerativeModel {
     model: MODEL_ID,
     generationConfig: {
       temperature: 0.3,
-      // Gemini 2.5 Flash uses internal "thinking" tokens. We push the
-      // budget high enough that thinking never starves the actual JSON
-      // output. Korean content easily eats 1-2K tokens after thinking.
-      maxOutputTokens: 16384,
+      maxOutputTokens: 8192,
       responseMimeType: "application/json",
     },
+    // thinking을 끄면 각 호출이 25초 → 5-10초로 단축됨.
+    // 3번 호출 합계가 60초 안에 완료되어 크론 타임아웃 방지.
+    // @ts-expect-error - thinkingConfig is supported but not yet in the type definitions
+    thinkingConfig: { thinkingBudget: 0 },
   });
 }
 
