@@ -244,16 +244,18 @@ export default function Home() {
 
       <RealestateSection status={realestateStatus} />
 
-      <div className="space-y-10">
-        {COUNTRIES.map((country) => (
-          <CountryCard
-            key={country.id}
-            country={country}
-            status={statuses[country.id]}
-            onRetry={() => handleRetry(country.id)}
-          />
-        ))}
-      </div>
+      {(isAnyLoading || hasResults) && (
+        <div className="space-y-10">
+          {COUNTRIES.map((country) => (
+            <CountryCard
+              key={country.id}
+              country={country}
+              status={statuses[country.id]}
+              onRetry={() => handleRetry(country.id)}
+            />
+          ))}
+        </div>
+      )}
 
       <SummaryCard
         state={summary.state}
