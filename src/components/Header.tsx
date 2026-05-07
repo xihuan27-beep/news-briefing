@@ -6,8 +6,6 @@ interface HeaderProps {
   hasResults: boolean;
   cachedAt: string | null;
   onGenerate: () => void;
-  onRealestate: () => void;
-  isRealestateLoading: boolean;
 }
 
 function formatCachedAt(iso: string): string {
@@ -25,16 +23,12 @@ export function Header({
   hasResults,
   cachedAt,
   onGenerate,
-  onRealestate,
-  isRealestateLoading,
 }: HeaderProps) {
-  const briefingButtonLabel = isLoading
+  const buttonLabel = isLoading
     ? "생성 중…"
     : hasResults
       ? "다시 생성"
       : "오늘의 브리핑 생성";
-
-  const realestateButtonLabel = isRealestateLoading ? "불러오는 중…" : "부동산 정보";
 
   return (
     <header className="pt-12 pb-8 sm:pt-16 sm:pb-10">
@@ -48,7 +42,7 @@ export function Header({
         {dateLabel} · 한국시간 기준
       </p>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className="mt-6 flex items-center gap-3">
         <button
           type="button"
           onClick={onGenerate}
@@ -56,17 +50,7 @@ export function Header({
           className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[var(--rule)]"
           style={{ borderColor: "var(--foreground)" }}
         >
-          {briefingButtonLabel}
-        </button>
-
-        <button
-          type="button"
-          onClick={onRealestate}
-          disabled={isRealestateLoading}
-          className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[var(--rule)]"
-          style={{ borderColor: "var(--navy)", color: "var(--navy)" }}
-        >
-          {realestateButtonLabel}
+          {buttonLabel}
         </button>
 
         {cachedAt && !isLoading && (
