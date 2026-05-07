@@ -21,13 +21,15 @@ export function getGeminiModel(): GenerativeModel {
     model: MODEL_ID,
     generationConfig: {
       temperature: 0.3,
-      maxOutputTokens: 8192,
+      // thinking 비활성화: Gemini 2.5 Flash Lite는 기본으로 thinking을 켜는데,
+      // thinking 토큰이 maxOutputTokens 예산을 잡아먹어 실제 JSON이 중간에 잘림.
+      // thinkingBudget: 0으로 끄면 각 호출이 25초 → 5-10초로 단축되고
+      // JSON 출력이 잘리지 않음. maxOutputTokens은 전부 실제 출력에 사용.
+      // @ts-expect-error - thinkingConfig is supported but not yet in the typedefs
+      thinkingConfig: { thinkingBudget: 0 },
+      maxOutputTokens: 16384,
       responseMimeType: "application/json",
     },
-    // thinking을 끄면 각 호출이 25초 → 5-10초로 단축됨.
-    // 3번 호출 합계가 60초 안에 완료되어 크론 타임아웃 방지.
-    // @ts-expect-error - thinkingConfig is supported but not yet in the type definitions
-    thinkingConfig: { thinkingBudget: 0 },
   });
 }
 
