@@ -10,14 +10,80 @@ import {
 } from "@/lib/prompt";
 import { parseGroupResponse, parseSummary } from "@/lib/parse";
 import { fetchOutletHeadlines, formatHeadlinesForPrompt } from "@/lib/rss";
-import type { CountryBriefing } from "@/lib/types";
+import { fetchRealestateHeadlines } from "@/lib/realestate-rss";
+import type { CountryBriefing, RealestateBriefing, RealestateTopic, RealestateArticle } from "@/lib/types";
 
 export interface FullBriefingResult {
   dateKST: string;
   briefings: CountryBriefing[];
   summary: string;
+  realestate?: RealestateBriefing;
   generatedAt: string;
 }
+
+// ── 부동산 ────────────────────────────────────────────────────────────────────
+
+const REALESTATE_TOPICS: RealestateTopic[] = ["재개발", "아파트", "꼬마빌딩", "상업용 부동산"];
+
+const REALESTATE_SYSTEM_PROMPT = `당신은 한국 부동산 뉴스 분류 전문가입니다.
+주어진 기사 목록을 다음 4개 토픽 중 하나로 분류하거나, 해당없음으로 처리하세요:
+- 재개발: 재개발, 재건축, 정비사업, 뉴타운, 도시재생 관련
+- 아파트: 아파트 매매, 분양, 청약, 입주, 단지, 가격 관련
+- 꼬마빌딩: 소형 빌딩, 꼬마빌딩, 수익형 부동산, 소규모 상업용 건물 관련
+- 상업용 부동산: 오피스, 상가, 대형 빌딩, 물류센터, 리테일, 호텔 관련
+- 해당없음: 위 4개 토픽에 해당하지 않는 기사
+
+반드시 아래 JSON 형식만 반환하세요:
+{ "results": [{ "idx": 0, "topic": "재개발" }, ...] }`;
+
+function emptyRealestate(): RealestateBriefing {
+  return {
+    topics: REALESTATE_TOPICS.map((topic) => ({ topic, articles: [] })),
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function generateRealestateBriefing(): Promise<RealestateBriefing> {
+  const headlines = await fetchRealestateHeadlines();
+
+  if (headlines.length === 0) return emptyRealestate();
+
+  const lines = headlines.map((h, i) => `${i}. [${h.outlet}] ${h.title}`).join("\n");
+  const raw = await generateJson(
+    REALESTATE_SYSTEM_PROMPT,
+    `다음 기사들을 분류해주세요:\n${lines}`
+  );
+
+  let classifications: { idx: number; topic: string }[] = [];
+  try {
+    const parsed = JSON.parse(raw) as { results?: { idx: number; topic: string }[] };
+    classifications = parsed.results ?? [];
+  } catch {
+    return emptyRealestate();
+  }
+
+  const byTopic = new Map<RealestateTopic, RealestateArticle[]>(
+    REALESTATE_TOPICS.map((t) => [t, []])
+  );
+
+  for (const c of classifications) {
+    if (!REALESTATE_TOPICS.includes(c.topic as RealestateTopic)) continue;
+    const topic = c.topic as RealestateTopic;
+    const h = headlines[c.idx];
+    if (!h) continue;
+    const list = byTopic.get(topic)!;
+    if (list.length < 5) {
+      list.push({ title: h.title, url: h.link, outlet: h.outlet, pubDate: h.pubDate, topic });
+    }
+  }
+
+  return {
+    topics: REALESTATE_TOPICS.map((topic) => ({ topic, articles: byTopic.get(topic) ?? [] })),
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+// ── 국가별 브리핑 ─────────────────────────────────────────────────────────────
 
 async function generateGroupBriefing(
   countries: CountryConfig[]
@@ -112,12 +178,20 @@ export async function generateFullBriefing(): Promise<FullBriefingResult> {
 
   if (succeeded.length === 0) throw new Error("모든 국가 브리핑 생성 실패");
 
-  const summary = await generateSummaryText(succeeded);
+  // summary와 realestate를 병렬로 생성 (둘 다 독립적인 Gemini 호출)
+  const [summary, realestate] = await Promise.all([
+    generateSummaryText(succeeded),
+    generateRealestateBriefing().catch((err) => {
+      console.error("[generate] realestate 생성 실패:", err);
+      return emptyRealestate();
+    }),
+  ]);
 
   return {
     dateKST,
     briefings: all,
     summary,
+    realestate,
     generatedAt: new Date().toISOString(),
   };
 }
