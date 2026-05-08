@@ -44,18 +44,21 @@ async function fetchGroup(countryIds: string[]): Promise<CountryBriefing[]> {
   return body.briefings;
 }
 
-async function fetchSummary(briefings: CountryBriefing[]): Promise<string> {
+async function fetchSummary(
+  briefings: CountryBriefing[],
+  realestate?: RealestateBriefing
+): Promise<{ text: string; generatedAt: string }> {
   const res = await fetch("/api/briefing/summary", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ briefings }),
+    body: JSON.stringify({ briefings, realestate }),
   });
   if (!res.ok) {
     const errBody = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(errBody.error || `HTTP ${res.status}`);
   }
-  const body = (await res.json()) as { text: string };
-  return body.text;
+  const body = (await res.json()) as { text: string; generatedAt?: string };
+  return { text: body.text, generatedAt: body.generatedAt ?? new Date().toISOString() };
 }
 
 function statusesFromBriefings(briefings: CountryBriefing[]): CountryStatuses {
@@ -93,6 +96,7 @@ export default function Home() {
 
   useEffect(() => {
     async function loadCached() {
+      let hasRealestate = false;
       try {
         const res = await fetch("/api/briefing/cached");
         if (res.ok) {
@@ -100,6 +104,10 @@ export default function Home() {
           setStatuses(statusesFromBriefings(data.briefings));
           setSummary({ state: "ready", text: data.summary });
           setCachedAt(data.generatedAt);
+          if (data.realestate) {
+            setRealestateStatus({ state: "ready", data: data.realestate });
+            hasRealestate = true;
+          }
         } else {
           // 캐시 없음 → 자동 생성
           void generateRef.current();
@@ -110,20 +118,19 @@ export default function Home() {
       } finally {
         setCacheChecked(true);
       }
-    }
-
-    async function loadRealestate() {
-      try {
-        const data = await fetchRealestate();
-        setRealestateStatus({ state: "ready", data });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "알 수 없는 오류";
-        setRealestateStatus({ state: "error", message });
+      // 캐시에 realestate가 없으면 별도 API로 불러옴
+      if (!hasRealestate) {
+        try {
+          const data = await fetchRealestate();
+          setRealestateStatus({ state: "ready", data });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "알 수 없는 오류";
+          setRealestateStatus({ state: "error", message });
+        }
       }
     }
 
     void loadCached();
-    void loadRealestate();
   }, []);
 
   const isAnyLoading =
@@ -209,8 +216,11 @@ export default function Home() {
 
     setSummary({ state: "loading" });
     try {
-      const text = await fetchSummary(succeeded);
+      // 현재 realestate 상태를 summary와 함께 Blob에 저장 → 다른 기기도 캐시 즉시 사용
+      const currentRealestate = realestateStatus.state === "ready" ? realestateStatus.data : undefined;
+      const { text, generatedAt } = await fetchSummary(succeeded, currentRealestate);
       setSummary({ state: "ready", text });
+      setCachedAt(generatedAt);
     } catch (err) {
       const message = err instanceof Error ? err.message : "알 수 없는 오류";
       setSummary({ state: "error", message });

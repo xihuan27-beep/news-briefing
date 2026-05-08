@@ -2,15 +2,18 @@ import { NextResponse } from "next/server";
 import { generateJson } from "@/lib/gemini";
 import { buildSummarySystemPrompt, SUMMARY_USER_MESSAGE } from "@/lib/prompt";
 import { parseSummary } from "@/lib/parse";
-import type { CountryBriefing } from "@/lib/types";
+import { saveBriefing } from "@/lib/blob";
+import { todayKST } from "@/lib/date";
+import type { CountryBriefing, RealestateBriefing } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
   let briefings: CountryBriefing[] = [];
+  let realestate: RealestateBriefing | undefined;
   try {
-    const body = (await req.json()) as { briefings?: CountryBriefing[] };
+    const body = (await req.json()) as { briefings?: CountryBriefing[]; realestate?: RealestateBriefing };
     if (!body || !Array.isArray(body.briefings)) {
       return NextResponse.json(
         { error: "briefings 배열이 필요합니다." },
@@ -18,6 +21,7 @@ export async function POST(req: Request) {
       );
     }
     briefings = body.briefings;
+    realestate = body.realestate;
   } catch {
     return NextResponse.json({ error: "JSON 파싱 실패" }, { status: 400 });
   }
@@ -42,7 +46,19 @@ export async function POST(req: Request) {
       SUMMARY_USER_MESSAGE(briefingsJson)
     );
     const text = parseSummary(raw);
-    return NextResponse.json({ text });
+
+    // 브라우저에서 자동 생성한 경우에도 Blob에 저장 → 다른 기기에서도 캐시 사용 가능
+    // realestate가 있으면 함께 저장해서 다른 기기도 즉시 표시
+    const generatedAt = new Date().toISOString();
+    void saveBriefing({
+      dateKST: todayKST(),
+      briefings,
+      summary: text,
+      realestate,
+      generatedAt,
+    });
+
+    return NextResponse.json({ text, generatedAt });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "알 수 없는 오류";
     console.error("[briefing/summary] error:", msg);
