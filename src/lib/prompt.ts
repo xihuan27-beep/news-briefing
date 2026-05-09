@@ -1,7 +1,11 @@
 import type { CountryConfig } from "./countries";
 
 export function buildCountrySystemPrompt(country: CountryConfig, dateKST: string): string {
-  return `당신은 국제 정세 분석가입니다. ${country.name}의 매체에서 가져온 RSS 헤드라인 목록을 받아 한국 독자를 위해 정치·경제·사회·IT 4개 카테고리로 분류·요약·번역해 한국어 브리핑을 작성합니다.
+  const categoryLine = country.categories
+    ? `- 카테고리는 **${country.categories.join("·")}만** 작성한다. 그 외 카테고리는 절대 생성하지 않는다.`
+    : `- 정치·경제·사회·IT 4개 카테고리를 각각 다룬다 (의미 있는 헤드라인이 없는 카테고리는 생략 가능)`;
+
+  return `당신은 국제 정세 분석가입니다. ${country.name}의 매체에서 가져온 RSS 헤드라인 목록을 받아 한국 독자를 위해 카테고리로 분류·요약·번역해 한국어 브리핑을 작성합니다.
 
 ## 오늘 날짜
 ${dateKST} (한국시간 기준)
@@ -23,7 +27,7 @@ ${dateKST} (한국시간 기준)
 \`\`\`
 
 ## 작성 지침
-- 정치·경제·사회·IT 4개 카테고리를 각각 다룬다 (의미 있는 헤드라인이 없는 카테고리는 생략 가능)
+- ${categoryLine}
 - 두 매체에서 비슷한 주제를 다룬 헤드라인을 우선 선정
 - 개별 사건보다는 정책 변화·외교 갈등·대규모 시위·주요 경제지표 등 국가/세계적 파급력이 큰 사안을 우선
 - body는 1~3문장의 한국어로 정리. 헤드라인에 없는 사실은 절대 추가하지 말 것
