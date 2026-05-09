@@ -4,6 +4,7 @@ interface HeaderProps {
   dateLabel: string;
   isLoading: boolean;
   hasResults: boolean;
+  hasErrors: boolean;
   cachedAt: string | null;
   onGenerate: () => void;
 }
@@ -23,9 +24,15 @@ export function Header({
   dateLabel,
   isLoading,
   hasResults,
+  hasErrors,
   cachedAt,
   onGenerate,
 }: HeaderProps) {
+  // 로딩 중: "생성 중…" 버튼 표시
+  // 결과 없음 (초기): "오늘의 브리핑 생성" 버튼 표시
+  // 일부 오류: "다시 생성" 버튼 표시
+  // 오류 없이 정상 로드: 버튼 숨김
+  const showButton = isLoading || !hasResults || hasErrors;
   const buttonLabel = isLoading
     ? "생성 중…"
     : hasResults
@@ -45,15 +52,17 @@ export function Header({
       </p>
 
       <div className="mt-6 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={isLoading}
-          className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[var(--rule)]"
-          style={{ borderColor: "var(--foreground)" }}
-        >
-          {buttonLabel}
-        </button>
+        {showButton && (
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={isLoading}
+            className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 hover:bg-[var(--rule)]"
+            style={{ borderColor: "var(--foreground)" }}
+          >
+            {buttonLabel}
+          </button>
+        )}
 
         {cachedAt && !isLoading && (
           <span className="text-xs" style={{ color: "var(--muted)" }}>

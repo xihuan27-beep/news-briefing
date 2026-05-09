@@ -140,6 +140,7 @@ export default function Home() {
     summary.state === "loading";
 
   const hasResults = Object.values(statuses).some((s) => s.state === "ready");
+  const hasErrors = Object.values(statuses).some((s) => s.state === "error");
 
   const generateOne = useCallback(async (id: string) => {
     setStatuses((prev) => ({ ...prev, [id]: { state: "loading" } }));
@@ -248,6 +249,7 @@ export default function Home() {
           dateLabel={todayKSTLong()}
           isLoading={false}
           hasResults={false}
+          hasErrors={false}
           cachedAt={null}
           onGenerate={handleGenerate}
         />
@@ -261,6 +263,7 @@ export default function Home() {
         dateLabel={todayKSTLong()}
         isLoading={isAnyLoading}
         hasResults={hasResults}
+        hasErrors={hasErrors}
         cachedAt={cachedAt}
         onGenerate={handleGenerate}
       />
