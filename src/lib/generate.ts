@@ -11,6 +11,7 @@ import {
 import { parseGroupResponse, parseSummary } from "@/lib/parse";
 import { fetchOutletHeadlines, formatHeadlinesForPrompt } from "@/lib/rss";
 import { fetchRealestateHeadlines } from "@/lib/realestate-rss";
+import { REALESTATE_TOPICS } from "@/lib/types";
 import type { CountryBriefing, RealestateBriefing, RealestateTopic, RealestateArticle } from "@/lib/types";
 
 export interface FullBriefingResult {
@@ -23,7 +24,7 @@ export interface FullBriefingResult {
 
 // ── 부동산 ────────────────────────────────────────────────────────────────────
 
-const REALESTATE_TOPICS: RealestateTopic[] = ["재개발", "아파트", "꼬마빌딩", "상업용 부동산"];
+// REALESTATE_TOPICS는 types.ts에서 import (중복 방지)
 
 const REALESTATE_SYSTEM_PROMPT = `당신은 한국 부동산 뉴스 분류 전문가입니다.
 주어진 기사 목록을 다음 4개 토픽 중 하나로 분류하거나, 해당없음으로 처리하세요:

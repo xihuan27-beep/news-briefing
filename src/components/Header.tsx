@@ -9,12 +9,14 @@ interface HeaderProps {
 }
 
 function formatCachedAt(iso: string): string {
-  // ISO 타임스탬프 → 한국시간 "HH:MM 기준"
+  // ISO 타임스탬프 → 한국시간 "오전/오후 H:MM 자동 생성"
   const date = new Date(iso);
   const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  const h = String(kst.getUTCHours()).padStart(2, "0");
+  const rawH = kst.getUTCHours();
+  const period = rawH < 12 ? "오전" : "오후";
+  const h = String(rawH % 12 || 12).padStart(2, "0");
   const m = String(kst.getUTCMinutes()).padStart(2, "0");
-  return `오전 ${h}:${m} 자동 생성`;
+  return `${period} ${h}:${m} 자동 생성`;
 }
 
 export function Header({
