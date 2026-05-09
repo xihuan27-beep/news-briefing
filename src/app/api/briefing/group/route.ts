@@ -59,7 +59,11 @@ export async function POST(req: Request) {
     const sections = usableCountries
       .map(({ country, headlines }) => {
         const text = formatHeadlinesForPrompt(headlines);
-        return `\n## [id=${country.id}] ${country.flag} ${country.name} (${country.outlets})\n${text}`;
+        // generate.ts(크론 경로)와 동일하게 카테고리 제한 힌트 포함
+        const catHint = country.categories
+          ? ` [카테고리: ${country.categories.join(", ")}만]`
+          : "";
+        return `\n## [id=${country.id}] ${country.flag} ${country.name} (${country.outlets})${catHint}\n${text}`;
       })
       .join("\n");
 

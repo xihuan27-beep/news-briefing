@@ -49,14 +49,19 @@ export async function POST(req: Request) {
 
     // 브라우저에서 자동 생성한 경우에도 Blob에 저장 → 다른 기기에서도 캐시 사용 가능
     // realestate가 있으면 함께 저장해서 다른 기기도 즉시 표시
+    // void가 아닌 await — serverless 함수 종료 전에 저장 완료 보장
     const generatedAt = new Date().toISOString();
-    void saveBriefing({
-      dateKST: todayKST(),
-      briefings,
-      summary: text,
-      realestate,
-      generatedAt,
-    });
+    try {
+      await saveBriefing({
+        dateKST: todayKST(),
+        briefings,
+        summary: text,
+        realestate,
+        generatedAt,
+      });
+    } catch (saveErr) {
+      console.error("[briefing/summary] Blob 저장 오류 (무시):", saveErr);
+    }
 
     return NextResponse.json({ text, generatedAt });
   } catch (err) {

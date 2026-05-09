@@ -2,16 +2,11 @@
  * Vercel Blob 저장소 래퍼.
  * BLOB_READ_WRITE_TOKEN 환경변수가 없으면 graceful하게 null 반환.
  */
+import { todayKST } from "@/lib/date";
 import type { FullBriefingResult } from "@/lib/generate";
 
-export function todayKSTString(): string {
-  const now = new Date();
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  const y = kst.getUTCFullYear();
-  const m = String(kst.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(kst.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+// todayKSTString은 date.ts의 todayKST()와 동일 → 중복 방지를 위해 re-export
+export { todayKST as todayKSTString } from "@/lib/date";
 
 function isConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
@@ -36,6 +31,7 @@ export async function saveBriefing(data: FullBriefingResult): Promise<void> {
     console.log(`[blob] ${data.dateKST} 브리핑 저장 완료`);
   } catch (err) {
     console.error("[blob] saveBriefing 오류:", err);
+    throw err;
   }
 }
 
@@ -43,7 +39,7 @@ export async function loadBriefing(): Promise<FullBriefingResult | null> {
   if (!isConfigured()) return null;
   try {
     const { list } = await import("@vercel/blob");
-    const dateStr = todayKSTString();
+    const dateStr = todayKST();
     const { blobs } = await list({ prefix: blobPath(dateStr) });
     if (blobs.length === 0) return null;
 

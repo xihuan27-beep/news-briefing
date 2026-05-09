@@ -93,6 +93,8 @@ export default function Home() {
   // 페이지 로드 시 오늘 캐시된 브리핑 + 부동산 뉴스 자동 로드
   // handleGenerate보다 먼저 선언해야 하므로 ref로 순환 참조 방지
   const generateRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  // realestateStatus를 ref로도 관리 — handleGenerate(deps=[])의 stale closure 방지
+  const realestateStatusRef = useRef<RealestateStatus>({ state: "loading" });
 
   useEffect(() => {
     async function loadCached() {
@@ -216,8 +218,8 @@ export default function Home() {
 
     setSummary({ state: "loading" });
     try {
-      // 현재 realestate 상태를 summary와 함께 Blob에 저장 → 다른 기기도 캐시 즉시 사용
-      const currentRealestate = realestateStatus.state === "ready" ? realestateStatus.data : undefined;
+      // ref를 통해 최신 realestate 상태 읽기 (stale closure 방지)
+      const currentRealestate = realestateStatusRef.current.state === "ready" ? realestateStatusRef.current.data : undefined;
       const { text, generatedAt } = await fetchSummary(succeeded, currentRealestate);
       setSummary({ state: "ready", text });
       setCachedAt(generatedAt);
@@ -227,8 +229,9 @@ export default function Home() {
     }
   }, []);
 
-  // ref를 항상 최신 handleGenerate로 유지 (useEffect에서 안전하게 호출)
+  // ref를 항상 최신 값으로 유지 (stale closure 방지)
   generateRef.current = handleGenerate;
+  realestateStatusRef.current = realestateStatus;
 
   const handleRetry = useCallback(
     (id: string) => {
