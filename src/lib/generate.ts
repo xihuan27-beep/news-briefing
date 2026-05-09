@@ -86,7 +86,7 @@ export async function generateRealestateBriefing(): Promise<RealestateBriefing> 
 
 // ── 국가별 브리핑 ─────────────────────────────────────────────────────────────
 
-async function generateGroupBriefing(
+export async function generateGroupBriefing(
   countries: CountryConfig[]
 ): Promise<CountryBriefing[]> {
   const dateKST = todayKST();
@@ -127,7 +127,7 @@ async function generateGroupBriefing(
   }));
 }
 
-async function generateSummaryText(
+export async function generateSummaryText(
   briefings: CountryBriefing[]
 ): Promise<string> {
   const compact = briefings.map((c) => ({

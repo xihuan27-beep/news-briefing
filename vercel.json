@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/daily",
+      "path": "/api/cron/group1",
       "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/group2",
+      "schedule": "3 20 * * *"
     }
   ]
 }
