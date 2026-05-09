@@ -1,3 +1,5 @@
+import type { Category } from "@/lib/types";
+
 export interface OutletConfig {
   name: string;
   rssUrl: string;
@@ -10,6 +12,8 @@ export interface CountryConfig {
   language: string;
   outlets: string;
   outletEntries: OutletConfig[];
+  /** 지정 시 해당 카테고리만 생성. 미지정 시 정치·경제·사회·IT 전부. */
+  categories?: Category[];
 }
 
 export const COUNTRIES: CountryConfig[] = [
@@ -51,6 +55,8 @@ export const COUNTRIES: CountryConfig[] = [
       { name: "人民日报", rssUrl: "http://www.people.com.cn/rss/politics.xml" },
       { name: "新华网", rssUrl: "http://www.xinhuanet.com/politics/news_politics.xml" },
     ],
+    // 중국 RSS는 정치 중심 피드 → 경제·사회 강제 생성 시 오래된 기사 노출
+    categories: ["정치", "IT"],
   },
   {
     id: "japan",

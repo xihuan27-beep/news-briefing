@@ -101,10 +101,12 @@ async function generateGroupBriefing(
   if (usable.length === 0) throw new Error("모든 RSS 페치 실패");
 
   const sections = usable
-    .map(
-      ({ country, headlines }) =>
-        `\n## [id=${country.id}] ${country.flag} ${country.name} (${country.outlets})\n${formatHeadlinesForPrompt(headlines)}`
-    )
+    .map(({ country, headlines }) => {
+      const catHint = country.categories
+        ? ` [카테고리: ${country.categories.join(", ")}만]`
+        : "";
+      return `\n## [id=${country.id}] ${country.flag} ${country.name} (${country.outlets})${catHint}\n${formatHeadlinesForPrompt(headlines)}`;
+    })
     .join("\n");
 
   const raw = await generateJson(

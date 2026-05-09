@@ -82,6 +82,7 @@ export function buildGroupSystemPrompt(dateKST: string): string {
 ## 작성 지침
 - 각 국가의 countryId는 입력 헤더 \`[id=...]\`에 표시된 그대로 사용
 - 정치·경제·사회·IT 4개 중 의미 있는 카테고리만 (없으면 생략)
+- 국가 헤더에 \`[카테고리: X, Y만]\`이 표시된 경우, 반드시 해당 카테고리만 작성하고 나머지는 생략
 - body는 1~3문장의 한국어, reason은 1~2문장
 - sources URL은 입력으로 받은 정확한 기사 URL을 그대로 사용 (절대 매체 홈페이지 X, 추측·생성 X)
 - 본문 안 [1] 인덱스는 sources 배열 인덱스(1부터)와 일치
