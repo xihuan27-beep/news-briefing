@@ -8,7 +8,7 @@ import {
   stripHtml,
   extractItems,
 } from "./rss-utils";
-import type { RawItem } from "./rss-utils";
+import type { RawItem, ParsedFeed } from "./rss-utils";
 
 export interface Headline {
   outletName: string;
@@ -35,7 +35,7 @@ async function fetchFeed(outlet: OutletConfig): Promise<Headline[]> {
       throw new Error(`HTTP ${res.status}`);
     }
     const xml = await res.text();
-    const parsed = xmlParser.parse(xml) as import("./rss-utils").ParsedFeed;
+    const parsed = xmlParser.parse(xml) as ParsedFeed;
     const allItems = extractItems(parsed);
 
     // 36시간 이내 기사만 필터링. 최신 기사가 하나도 없으면 최근 5개 fallback

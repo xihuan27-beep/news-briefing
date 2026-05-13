@@ -7,7 +7,7 @@ import {
   stripHtml,
   extractItems,
 } from "./rss-utils";
-import type { RawItem } from "./rss-utils";
+import type { RawItem, ParsedFeed } from "./rss-utils";
 
 export interface RealestateHeadline {
   title: string;
@@ -56,7 +56,7 @@ async function fetchOutletArticles(outlet: { name: string; rssUrl: string }): Pr
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const xml = await res.text();
-    const parsed = xmlParser.parse(xml) as import("./rss-utils").ParsedFeed;
+    const parsed = xmlParser.parse(xml) as ParsedFeed;
     const allItems = extractItems(parsed);
 
     const recentItems = allItems.filter((it: RawItem) => {
