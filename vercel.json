@@ -7,10 +7,6 @@
     {
       "path": "/api/cron/group2",
       "schedule": "3 20 * * *"
-    },
-    {
-      "path": "/api/cron/group3",
-      "schedule": "6 20 * * *"
     }
   ]
 }
