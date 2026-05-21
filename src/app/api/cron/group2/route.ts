@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { COUNTRIES } from "@/lib/countries";
-import { generateGroupBriefing, generateSummaryText, generateRealestateBriefing } from "@/lib/generate";
+import { generateGroupBriefing } from "@/lib/generate";
 import {
   saveBriefing,
   loadPartialBriefings,
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
       console.warn("[cron/group2] group1 partial 없음. 빈 배열로 진행");
     }
 
-    // 그룹2 생성
+    // 그룹2 생성 (RSS fetch + Gemini, ~35-40s)
     const group2Briefings = await generateGroupBriefing(GROUP2);
 
     // 전체 브리핑 합산
@@ -43,41 +43,24 @@ export async function GET(req: Request) {
       ...group2Briefings,
     ];
 
-    const succeeded = allBriefings.filter((b) => b.items.length > 0);
+    const succeeded = allBriefings.filter((b) => b.items.length > 0).length;
 
-    if (succeeded.length === 0) {
-      return NextResponse.json({ error: "모든 국가 브리핑 생성 실패" }, { status: 500 });
-    }
-
-    // summary + realestate 병렬 생성
-    const [summary, realestate] = await Promise.all([
-      generateSummaryText(succeeded),
-      generateRealestateBriefing().catch((err) => {
-        console.error("[cron/group2] realestate 생성 실패 (무시):", err);
-        return undefined;
-      }),
-    ]);
-
-    const generatedAt = new Date().toISOString();
-
+    // 요약·부동산은 group3가 담당 → summary 빈 문자열로 중간 저장
     await saveBriefing({
       dateKST: todayKST(),
       briefings: allBriefings,
-      summary,
-      realestate,
-      generatedAt,
+      summary: "",
+      realestate: undefined,
+      generatedAt: new Date().toISOString(),
     });
 
-    console.log(
-      `[cron/group2] 완료. 전체 ${succeeded.length}개국 성공, generatedAt=${generatedAt}`
-    );
+    console.log(`[cron/group2] 완료. ${succeeded}개국 성공, group3가 요약·부동산 생성 예정`);
 
     return NextResponse.json({
       ok: true,
       dateKST,
-      succeeded: succeeded.length,
+      succeeded,
       total: allBriefings.length,
-      generatedAt,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "알 수 없는 오류";
