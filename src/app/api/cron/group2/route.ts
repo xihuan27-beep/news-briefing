@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { COUNTRIES } from "@/lib/countries";
-import { generateGroupBriefing } from "@/lib/generate";
+import { generateGroupBriefing, generateSummaryText } from "@/lib/generate";
 import {
   saveBriefing,
   loadPartialBriefings,
@@ -28,39 +28,44 @@ export async function GET(req: Request) {
   console.log(`[cron/group2] ${dateKST} 그룹2 브리핑 생성 시작 (${GROUP2.length}개국)`);
 
   try {
-    // 그룹1 partial 로드 (group1 크론이 먼저 실행되어야 함)
     const group1Briefings = await loadPartialBriefings();
     if (!group1Briefings) {
       console.warn("[cron/group2] group1 partial 없음. 빈 배열로 진행");
     }
 
-    // 그룹2 생성 (RSS fetch + Gemini, ~35-40s)
+    // GROUP2 생성 (RSS + Gemini, ~35s)
     const group2Briefings = await generateGroupBriefing(GROUP2);
 
-    // 전체 브리핑 합산
     const allBriefings: CountryBriefing[] = [
       ...(group1Briefings ?? []),
       ...group2Briefings,
     ];
 
-    const succeeded = allBriefings.filter((b) => b.items.length > 0).length;
+    const succeeded = allBriefings.filter((b) => b.items.length > 0);
 
-    // 요약·부동산은 group3가 담당 → summary 빈 문자열로 중간 저장
+    if (succeeded.length === 0) {
+      return NextResponse.json({ error: "모든 국가 브리핑 생성 실패" }, { status: 500 });
+    }
+
+    // 요약 생성 (~12s) — 부동산은 on-demand으로만 제공
+    const summary = await generateSummaryText(succeeded);
+
+    const generatedAt = new Date().toISOString();
     await saveBriefing({
       dateKST: todayKST(),
       briefings: allBriefings,
-      summary: "",
-      realestate: undefined,
-      generatedAt: new Date().toISOString(),
+      summary,
+      generatedAt,
     });
 
-    console.log(`[cron/group2] 완료. ${succeeded}개국 성공, group3가 요약·부동산 생성 예정`);
+    console.log(`[cron/group2] 완료. ${succeeded.length}개국 성공, generatedAt=${generatedAt}`);
 
     return NextResponse.json({
       ok: true,
       dateKST,
-      succeeded,
+      succeeded: succeeded.length,
       total: allBriefings.length,
+      generatedAt,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "알 수 없는 오류";
