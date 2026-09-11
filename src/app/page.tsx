@@ -5,9 +5,10 @@ import { Header } from "@/components/Header";
 import { CountryCard } from "@/components/CountryCard";
 import { SummaryCard } from "@/components/SummaryCard";
 import { RealestateSection } from "@/components/RealestateSection";
+import { AssetSection } from "@/components/AssetSection";
 import { COUNTRIES } from "@/lib/countries";
 import { todayKSTLong } from "@/lib/date";
-import type { BriefingStatus, CountryBriefing, RealestateStatus, RealestateBriefing } from "@/lib/types";
+import type { BriefingStatus, CountryBriefing, RealestateStatus, RealestateBriefing, AssetStatus, AssetBriefing } from "@/lib/types";
 import type { FullBriefingResult } from "@/lib/generate";
 
 type CountryStatuses = Record<string, BriefingStatus>;
@@ -83,12 +84,23 @@ async function fetchRealestate(): Promise<RealestateBriefing> {
   return (await res.json()) as RealestateBriefing;
 }
 
+async function fetchAsset(): Promise<AssetBriefing | null> {
+  const res = await fetch("/api/briefing/asset", { method: "POST" });
+  if (!res.ok) {
+    const errBody = (await res.json().catch(() => ({}))) as { error?: string; notConfigured?: boolean };
+    if (errBody.notConfigured) return null; // 미설정 → 섹션 자체를 숨김
+    throw new Error(errBody.error || `HTTP ${res.status}`);
+  }
+  return (await res.json()) as AssetBriefing;
+}
+
 export default function Home() {
   const [statuses, setStatuses] = useState<CountryStatuses>(initialStatuses);
   const [summary, setSummary] = useState<SummaryState>({ state: "idle" });
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [cacheChecked, setCacheChecked] = useState(false);
   const [realestateStatus, setRealestateStatus] = useState<RealestateStatus>({ state: "loading" });
+  const [assetStatus, setAssetStatus] = useState<AssetStatus>({ state: "loading" });
 
   // 페이지 로드 시 오늘 캐시된 브리핑 + 부동산 뉴스 자동 로드
   // handleGenerate보다 먼저 선언해야 하므로 ref로 순환 참조 방지
@@ -129,6 +141,15 @@ export default function Home() {
           const message = err instanceof Error ? err.message : "알 수 없는 오류";
           setRealestateStatus({ state: "error", message });
         }
+      }
+
+      // 자산 현황은 실시간성이 중요해 캐시하지 않고 항상 별도 API로 불러옴
+      try {
+        const data = await fetchAsset();
+        setAssetStatus(data ? { state: "ready", data } : { state: "idle" });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "알 수 없는 오류";
+        setAssetStatus({ state: "error", message });
       }
     }
 
@@ -286,6 +307,8 @@ export default function Home() {
         text={summary.state === "ready" ? summary.text : undefined}
         errorMessage={summary.state === "error" ? summary.message : undefined}
       />
+
+      <AssetSection status={assetStatus} />
     </main>
   );
 }

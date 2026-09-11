@@ -51,3 +51,33 @@ export type RealestateStatus =
   | { state: "loading" }
   | { state: "ready"; data: RealestateBriefing }
   | { state: "error"; message: string };
+
+// ── 자산 단가/환율 추이 (수익률만 노출, 금액은 비노출) ──────────────────────────
+export interface AssetReturnPoint {
+  label: string;
+  value: number; // 퍼센트, 예: 25.41
+}
+
+export interface AssetTrendItem {
+  name: string;
+  code: string;
+  returns: AssetReturnPoint[];
+}
+
+export interface ExchangeRateItem {
+  label: string;
+  rate: number;
+}
+
+export interface AssetBriefing {
+  priceTrend: AssetTrendItem[];
+  focusTrend: AssetTrendItem[];
+  exchangeRates: ExchangeRateItem[];
+  generatedAt: string;
+}
+
+export type AssetStatus =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "ready"; data: AssetBriefing }
+  | { state: "error"; message: string };
